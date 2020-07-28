@@ -586,3 +586,5 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         return formatter.format(totalDistance) + " KM";
     }
 }
+
+// completed again
