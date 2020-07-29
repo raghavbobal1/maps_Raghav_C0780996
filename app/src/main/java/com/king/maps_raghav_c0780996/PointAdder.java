@@ -6,7 +6,7 @@ import java.util.Vector;
 import java.util.*;
 
 
-public class PointPlotter {
+public class PointAdder {
 
     public static int orientation(LatLng p1, LatLng p2,
                                   LatLng p3)

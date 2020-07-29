@@ -41,26 +41,23 @@ import java.io.IOException;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Vector;
 
 
 public class MapsActivity extends AppCompatActivity implements OnMapReadyCallback,  GoogleMap.OnMapClickListener, GoogleMap.OnMapLongClickListener, GoogleMap.OnPolylineClickListener, GoogleMap.OnPolygonClickListener {
 
-    private static final int REQUEST_CODE = 1;
-    private static final int POLYGON_SIDES = 4;
-    Polygon shape;
-    List<Marker> markersList = new ArrayList<>();
-    List<Marker> distanceMarkers = new ArrayList<>();
-    ArrayList<Polyline> polylinesList = new ArrayList<>();
-
-    List<Marker> cityMarkers = new ArrayList<>();
-    ArrayList<Character> letterList = new ArrayList<>();
-
+    private static final int req_code = 1;
+    private static final int polygone_sides = 4;
     LocationManager locationManager;
     LocationListener locationListener;
     private GoogleMap mMap;
+    List<Marker> cityMarkers = new ArrayList<>();
+    ArrayList<Character> letterList = new ArrayList<>();
+    Polygon design;
+    List<Marker> listOfMarkers = new ArrayList<>();
+    List<Marker> markerDistance = new ArrayList<>();
+    ArrayList<Polyline> listOfPolylines = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -122,9 +119,9 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         };
 
         if (!hasLocationPermission()) {
-            requestLocationPermission();
+            reqLocPermission();
         } else {
-            startUpdateLocations();
+            startUpdatingLoc();
             LatLng zoomLocation = new LatLng( 43.651070,-79.347015);
             mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(zoomLocation, 5));
         }
@@ -163,33 +160,33 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                     }
                 }
 
-                String[] geoData = getAddressInfo(marker.getPosition());
+                String[] geoData = getAddress(marker.getPosition());
                 String title = geoData[0];
                 String snippet = geoData[1];
 
                 marker.setTitle(title);
                 marker.setSnippet(snippet);
 
-                if (markersList.size() == POLYGON_SIDES) {
-                    for(Polyline line: polylinesList){
+                if (listOfMarkers.size() == polygone_sides) {
+                    for(Polyline line: listOfPolylines){
                         line.remove();
                     }
-                    polylinesList.clear();
+                    listOfPolylines.clear();
 
-                    shape.remove();
-                    shape = null;
+                    design.remove();
+                    design = null;
 
-                    for(Marker currMarker: distanceMarkers){
+                    for(Marker currMarker: markerDistance){
                         currMarker.remove();
                     }
-                    distanceMarkers.clear();
-                    drawShape();
+                    markerDistance.clear();
+                    drawQuad();
                 }
             }
         });
     }
 
-    private void startUpdateLocations() {
+    private void startUpdatingLoc() {
 
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             return;
@@ -198,8 +195,8 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     }
 
-    private void requestLocationPermission() {
-        ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, REQUEST_CODE);
+    private void reqLocPermission() {
+        ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, req_code);
     }
 
     private boolean hasLocationPermission() {
@@ -210,13 +207,13 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
 
-        if (REQUEST_CODE == requestCode) {
+        if (req_code == requestCode) {
             if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
                 locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 5000, 0, locationListener);
             }
         }
     }
-    private String[] getAddressInfo(LatLng latLng){
+    private String[] getAddress(LatLng latLng){
 
         Geocoder geoCoder = new Geocoder(this);
         Address address = null;
@@ -270,31 +267,9 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         result[1] = snippet;
         return result;
     }
-    private void setMarker(LatLng latLng) {
-        String[] geoData = getAddressInfo(latLng);
-        String title = geoData[0];
-        String snippet = geoData[1];
-
-        MarkerOptions options = new MarkerOptions().position(latLng)
-                .draggable(true)
-                .title(title)
-                .icon(BitmapDescriptorFactory.fromResource(R.drawable.marker))
-                .snippet(snippet);
 
 
-        if (markersList.size() == POLYGON_SIDES) {
-            clearMap();
-        }
-
-        Marker mm = mMap.addMarker(options);
-        markersList.add(mm);
-
-        if (markersList.size() == POLYGON_SIDES) {
-            drawShape();
-        }
-        addCityLabelMarker(latLng, mm);
-    }
-    private void addCityLabelMarker(LatLng latLng, Marker locationLabel){
+    private void addCityLabel(LatLng latLng, Marker locationLabel){
 
         ArrayList<Character> arr = new ArrayList<>();
         arr.add('A');
@@ -321,32 +296,88 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
 
-    private void drawShape (){
+    private void setMarker(LatLng latLng) {
+        String[] geoData = getAddress(latLng);
+        String title = geoData[0];
+        String snippet = geoData[1];
+
+        MarkerOptions options = new MarkerOptions().position(latLng)
+                .draggable(true)
+                .title(title)
+                .icon(BitmapDescriptorFactory.fromResource(R.drawable.marker))
+                .snippet(snippet);
+
+
+        if (listOfMarkers.size() == polygone_sides) {
+            clearAll();
+        }
+
+        Marker mm = mMap.addMarker(options);
+        listOfMarkers.add(mm);
+
+        if (listOfMarkers.size() == polygone_sides) {
+            drawQuad();
+        }
+        addCityLabel(latLng, mm);
+    }
+
+
+
+
+    private void clearAll() {
+        for (Marker marker : listOfMarkers) {
+            marker.remove();
+        }
+        listOfMarkers.clear();
+
+        for(Polyline line: listOfPolylines){
+            line.remove();
+        }
+        listOfPolylines.clear();
+
+        design.remove();
+        design = null;
+
+        for (Marker marker : markerDistance) {
+            marker.remove();
+        }
+        markerDistance.clear();
+
+        for(Marker marker: cityMarkers){
+            marker.remove();
+        }
+        cityMarkers.clear();
+        letterList.clear();
+
+    }
+
+
+    private void drawQuad(){
         PolygonOptions options = new PolygonOptions()
                 .fillColor(Color.argb(35, 0, 255, 0))
                 .strokeColor(Color.RED);
 
-        LatLng[] markersConvex = new LatLng[POLYGON_SIDES];
-        for (int i = 0; i < POLYGON_SIDES; i++) {
-            markersConvex[i] = new LatLng(markersList.get(i).getPosition().latitude,
-                    markersList.get(i).getPosition().longitude);
+        LatLng[] markersConvex = new LatLng[polygone_sides];
+        for (int i = 0; i < polygone_sides; i++) {
+            markersConvex[i] = new LatLng(listOfMarkers.get(i).getPosition().latitude,
+                    listOfMarkers.get(i).getPosition().longitude);
         }
 
-        Vector<LatLng> sortedLatLong = PointPlotter.convexHull(markersConvex, POLYGON_SIDES);
+        Vector<LatLng> sortedLatLong = PointAdder.convexHull(markersConvex, polygone_sides);
 
         Vector<LatLng> sortedLatLong2 =  new Vector<>();
 
         int l = 0;
-        for (int i = 0; i < markersList.size(); i++)
-            if (markersList.get(i).getPosition().latitude < markersList.get(l).getPosition().latitude)
+        for (int i = 0; i < listOfMarkers.size(); i++)
+            if (listOfMarkers.get(i).getPosition().latitude < listOfMarkers.get(l).getPosition().latitude)
                 l = i;
 
-        Marker currentMarker = markersList.get(l);
+        Marker currentMarker = listOfMarkers.get(l);
         sortedLatLong2.add(currentMarker.getPosition());
-        while(sortedLatLong2.size() != POLYGON_SIDES){
+        while(sortedLatLong2.size() != polygone_sides){
             double minDistance = Double.MAX_VALUE;
             Marker nearestMarker  = null;
-            for(Marker marker: markersList){
+            for(Marker marker: listOfMarkers){
                 if(sortedLatLong2.contains(marker.getPosition())){
                     continue;
                 }
@@ -370,8 +401,8 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         System.out.println(sortedLatLong);
 
         options.addAll(sortedLatLong);
-        shape = mMap.addPolygon(options);
-        shape.setClickable(true);
+        design = mMap.addPolygon(options);
+        design.setClickable(true);
 
 
         LatLng[] polyLinePoints = new LatLng[sortedLatLong.size() + 1];
@@ -392,40 +423,14 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                     .add(tempArr)
                     .color(Color.RED));
             currentPolyline.setClickable(true);
-            polylinesList.add(currentPolyline);
+            listOfPolylines.add(currentPolyline);
         }
     }
 
-    private void clearMap() {
-        for (Marker marker : markersList) {
-            marker.remove();
-        }
-        markersList.clear();
-
-        for(Polyline line: polylinesList){
-            line.remove();
-        }
-        polylinesList.clear();
-
-        shape.remove();
-        shape = null;
-
-        for (Marker marker : distanceMarkers) {
-            marker.remove();
-        }
-        distanceMarkers.clear();
-
-        for(Marker marker: cityMarkers){
-            marker.remove();
-        }
-        cityMarkers.clear();
-        letterList.clear();
-
-    }
 
     @Override
     public void onMapLongClick(LatLng latLng) {
-        if(markersList.size() == 0){
+        if(listOfMarkers.size() == 0){
             return;
         }
         double minDistance = Double.MAX_VALUE;
@@ -434,7 +439,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         Marker nearestMarker = null;
         Marker nearestCityMarker = null;
 
-        for(Marker marker: markersList){
+        for(Marker marker: listOfMarkers){
             double currDistance = distance(marker.getPosition().latitude,
                     marker.getPosition().longitude,
                     latLng.latitude,
@@ -470,25 +475,25 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                         public void onClick(DialogInterface dialog, int which) {
 
                             finalNearestMarker.remove();
-                            markersList.remove(finalNearestMarker);
+                            listOfMarkers.remove(finalNearestMarker);
 
                             finalNearestCityMarker.remove();
                             cityMarkers.remove(finalNearestCityMarker);
 
-                            for(Polyline polyline: polylinesList){
+                            for(Polyline polyline: listOfPolylines){
                                 polyline.remove();
                             }
-                            polylinesList.clear();
+                            listOfPolylines.clear();
 
-                            if(shape != null){
-                                shape.remove();
-                                shape = null;
+                            if(design != null){
+                                design.remove();
+                                design = null;
                             }
 
-                            for(Marker currMarker: distanceMarkers){
+                            for(Marker currMarker: markerDistance){
                                 currMarker.remove();
                             }
-                            distanceMarkers.clear();
+                            markerDistance.clear();
 
                         }
                     })
@@ -502,6 +507,24 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             AlertDialog dialog = deleteDialog.create();
             dialog.show();
         }
+    }
+
+
+    public String getTotalDist(ArrayList<Polyline> polylines){
+
+        double totalDistance = 0;
+        for(Polyline polyline : polylines){
+            List<LatLng> points = polyline.getPoints();
+            LatLng firstPoint = points.remove(0);
+            LatLng secondPoint = points.remove(0);
+
+            double distance = distance(firstPoint.latitude,firstPoint.longitude,
+                    secondPoint.latitude,secondPoint.longitude);
+            totalDistance += distance;
+
+        }
+        NumberFormat formatter = new DecimalFormat("#0.0");
+        return formatter.format(totalDistance) + " KM";
     }
 
     @Override
@@ -539,8 +562,8 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         LatLng center = builder.build().getCenter();
         MarkerOptions options = new MarkerOptions().position(center)
                 .draggable(true)
-                .icon(displayText(getTotalDistance(polylinesList)));
-        distanceMarkers.add(mMap.addMarker(options));
+                .icon(displayText(getTotalDist(listOfPolylines)));
+        markerDistance.add(mMap.addMarker(options));
     }
 
     @Override
@@ -553,11 +576,11 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         LatLng center = LatLngBounds.builder().include(firstPoint).include(secondPoint).build().getCenter();
         MarkerOptions options = new MarkerOptions().position(center)
                 .draggable(true)
-                .icon(displayText(getMarkerDistance(polyline)));
-        distanceMarkers.add(mMap.addMarker(options));
+                .icon(displayText(getMarkerDist(polyline)));
+        markerDistance.add(mMap.addMarker(options));
     }
 
-    public String getMarkerDistance(Polyline polyline){
+    public String getMarkerDist(Polyline polyline){
         List<LatLng> points = polyline.getPoints();
         LatLng firstPoint = points.remove(0);
         LatLng secondPoint = points.remove(0);
@@ -569,22 +592,4 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         return formatter.format(distance) + " KM";
     }
 
-    public String getTotalDistance(ArrayList<Polyline> polylines){
-
-        double totalDistance = 0;
-        for(Polyline polyline : polylines){
-            List<LatLng> points = polyline.getPoints();
-            LatLng firstPoint = points.remove(0);
-            LatLng secondPoint = points.remove(0);
-
-            double distance = distance(firstPoint.latitude,firstPoint.longitude,
-                    secondPoint.latitude,secondPoint.longitude);
-            totalDistance += distance;
-
-        }
-        NumberFormat formatter = new DecimalFormat("#0.0");
-        return formatter.format(totalDistance) + " KM";
-    }
 }
-
-// completed again
